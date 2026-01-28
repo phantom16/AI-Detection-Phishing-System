@@ -1,0 +1,50 @@
+{% extends "detector/base.html" %}
+
+{% block content %}
+<a href="{% url 'index' %}" class="back-link">Back to Scanner</a>
+
+<div class="result-header verdict-bg-{{ scan.verdict }}">
+    <h1>{{ scan.verdict|upper }}</h1>
+    <div class="risk-score">
+        <span class="score-number">{{ scan.risk_score|floatformat:0 }}</span>
+        <span class="score-label">Risk Score</span>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Analysis Details</h2>
+    <p><strong>Scan Type:</strong> {{ scan.scan_type|upper }}</p>
+    <p><strong>Input:</strong></p>
+    <pre class="input-preview">{{ scan.input_data|truncatechars:500 }}</pre>
+</div>
+
+<div class="card">
+    <h2>AI Explanation</h2>
+    <p>{{ scan.explanation }}</p>
+</div>
+
+{% if scan.indicators %}
+<div class="card">
+    <h2>Indicators Found</h2>
+    <ul class="indicator-list">
+        {% for indicator in scan.indicators %}
+        <li class="indicator-item">{{ indicator }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if features %}
+<div class="card">
+    <h2>Extracted Features</h2>
+    <dl class="features-grid">
+        {% for key, value in features.items %}
+        <div class="feature-item">
+            <dt>{{ key }}</dt>
+            <dd>{{ value }}</dd>
+        </div>
+        {% endfor %}
+    </dl>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "detector/base.html" %}
+
+{% block content %}
+<h1>Phishing Detection Scanner</h1>
+<p class="subtitle">Analyze URLs and emails for phishing threats using AI</p>
+
+<div class="scan-grid">
+    <div class="card">
+        <h2>Scan URL</h2>
+        <form method="post" action="{% url 'scan_url' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_url">{{ url_form.url.label }}</label>
+                {{ url_form.url }}
+            </div>
+            <button type="submit" class="btn">Analyze URL</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Scan Email</h2>
+        <form method="post" action="{% url 'scan_email' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_email_content">{{ email_form.email_content.label }}</label>
+                {{ email_form.email_content }}
+            </div>
+            <button type="submit" class="btn">Analyze Email</button>
+        </form>
+    </div>
+</div>
+
+{% if recent_scans %}
+<div class="card" style="margin-top: 2rem;">
+    <h2>Recent Scans</h2>
+    <table class="scan-table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Input</th>
+                <th>Verdict</th>
+                <th>Risk</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in recent_scans %}
+            <tr>
+                <td><span class="badge">{{ s.scan_type|upper }}</span></td>
+                <td class="truncate">{{ s.input_data|truncatechars:60 }}</td>
+                <td><span class="verdict verdict-{{ s.verdict }}">{{ s.verdict|upper }}</span></td>
+                <td>{{ s.risk_score|floatformat:0 }}%</td>
+                <td>{{ s.created_at|date:"M d, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}
