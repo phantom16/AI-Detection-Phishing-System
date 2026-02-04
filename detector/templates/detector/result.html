@@ -1,50 +1,85 @@
 {% extends "detector/base.html" %}
 
-{% block content %}
-<a href="{% url 'index' %}" class="back-link">Back to Scanner</a>
+{% block nav_phishing %}active{% endblock %}
 
-<div class="result-header verdict-bg-{{ scan.verdict }}">
-    <h1>{{ scan.verdict|upper }}</h1>
-    <div class="risk-score">
-        <span class="score-number">{{ scan.risk_score|floatformat:0 }}</span>
+{% block content %}
+<a href="{% url 'index' %}" class="back-link">
+    <i class="fas fa-arrow-left"></i> Back to Scanner
+</a>
+
+<!-- Result Hero -->
+<div class="result-hero {{ scan.verdict }}">
+    <div class="result-icon">
+        {% if scan.verdict == 'safe' %}
+        <i class="fas fa-check-circle"></i>
+        {% elif scan.verdict == 'suspicious' %}
+        <i class="fas fa-exclamation-triangle"></i>
+        {% else %}
+        <i class="fas fa-skull-crossbones"></i>
+        {% endif %}
+    </div>
+    <div class="result-verdict">{{ scan.verdict }}</div>
+    <div class="result-score">
+        <span class="score-value">{{ scan.risk_score|floatformat:0 }}</span>
         <span class="score-label">Risk Score</span>
     </div>
 </div>
 
-<div class="card">
-    <h2>Analysis Details</h2>
-    <p><strong>Scan Type:</strong> {{ scan.scan_type|upper }}</p>
-    <p><strong>Input:</strong></p>
-    <pre class="input-preview">{{ scan.input_data|truncatechars:500 }}</pre>
-</div>
-
-<div class="card">
-    <h2>AI Explanation</h2>
-    <p>{{ scan.explanation }}</p>
-</div>
-
-{% if scan.indicators %}
-<div class="card">
-    <h2>Indicators Found</h2>
-    <ul class="indicator-list">
-        {% for indicator in scan.indicators %}
-        <li class="indicator-item">{{ indicator }}</li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-
-{% if features %}
-<div class="card">
-    <h2>Extracted Features</h2>
-    <dl class="features-grid">
-        {% for key, value in features.items %}
-        <div class="feature-item">
-            <dt>{{ key }}</dt>
-            <dd>{{ value }}</dd>
+<!-- Result Details Grid -->
+<div class="result-grid">
+    <!-- Scan Info -->
+    <div class="result-card">
+        <h3><i class="fas fa-info-circle"></i> Scan Details</h3>
+        <div class="features-grid">
+            <div class="feature-item">
+                <dt>Scan Type</dt>
+                <dd>{{ scan.scan_type|upper }}</dd>
+            </div>
+            <div class="feature-item">
+                <dt>Scanned At</dt>
+                <dd>{{ scan.created_at|date:"M d, Y H:i" }}</dd>
+            </div>
         </div>
-        {% endfor %}
-    </dl>
+        <div style="margin-top: 1rem;">
+            <dt style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Input</dt>
+            <pre class="input-preview">{{ scan.input_data|truncatechars:500 }}</pre>
+        </div>
+    </div>
+
+    <!-- AI Explanation -->
+    <div class="result-card">
+        <h3><i class="fas fa-robot"></i> AI Analysis</h3>
+        <p class="explanation-text">{{ scan.explanation }}</p>
+    </div>
+
+    {% if scan.indicators %}
+    <!-- Indicators Found -->
+    <div class="result-card full-width">
+        <h3><i class="fas fa-exclamation-circle"></i> Indicators Found ({{ scan.indicators|length }})</h3>
+        <ul class="indicator-list">
+            {% for indicator in scan.indicators %}
+            <li class="indicator-item">
+                <i class="fas fa-triangle-exclamation"></i>
+                {{ indicator }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if features %}
+    <!-- Extracted Features -->
+    <div class="result-card full-width">
+        <h3><i class="fas fa-microscope"></i> Extracted Features</h3>
+        <dl class="features-grid">
+            {% for key, value in features.items %}
+            <div class="feature-item">
+                <dt>{{ key }}</dt>
+                <dd>{{ value }}</dd>
+            </div>
+            {% endfor %}
+        </dl>
+    </div>
+    {% endif %}
 </div>
-{% endif %}
 {% endblock %}

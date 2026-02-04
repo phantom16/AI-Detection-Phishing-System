@@ -4,15 +4,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Phishing Detector</title>
+    <title>{% block title %}PhishGuard AI{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <nav class="navbar">
-        <a href="{% url 'index' %}" class="nav-brand">AI Phishing Detector</a>
-    </nav>
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-shield-halved"></i>
+                    <span>PhishGuard</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{% url 'index' %}" class="nav-item {% block nav_dashboard %}{% endblock %}">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <i class="fas fa-database"></i>
+                    <span>Breach Monitor</span>
+                </a>
+                <a href="{% url 'index' %}" class="nav-item {% block nav_phishing %}{% endblock %}">
+                    <i class="fas fa-fish"></i>
+                    <span>Phishing Detector</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Log Analyzer</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <i class="fas fa-bug"></i>
+                    <span>Vulnerability Scanner</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Access Control</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Incidents</span>
+                </a>
+                <a href="#" class="nav-item disabled">
+                    <i class="fas fa-robot"></i>
+                    <span>AI Query Console</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <!-- Header -->
+            <header class="top-header">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search threats, IPs, domains...">
+                </div>
+                <div class="header-actions">
+                    <button class="header-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                    <button class="header-btn">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="user-profile">
+                        <div class="avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span>Admin</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="main-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

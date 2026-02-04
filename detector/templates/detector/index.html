@@ -1,60 +1,241 @@
 {% extends "detector/base.html" %}
 
+{% block nav_phishing %}active{% endblock %}
+
 {% block content %}
-<h1>Phishing Detection Scanner</h1>
-<p class="subtitle">Analyze URLs and emails for phishing threats using AI</p>
+<div class="page-header">
+    <h1><i class="fas fa-fish"></i> Phishing Detection</h1>
+    <p>Analyze URLs and emails for phishing threats using AI-powered detection</p>
+</div>
 
-<div class="scan-grid">
-    <div class="card">
-        <h2>Scan URL</h2>
-        <form method="post" action="{% url 'scan_url' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="id_url">{{ url_form.url.label }}</label>
-                {{ url_form.url }}
-            </div>
-            <button type="submit" class="btn">Analyze URL</button>
-        </form>
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card total">
+        <div class="stat-icon">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <div class="stat-value">{{ total_scans|default:"0" }}</div>
+        <div class="stat-label">Total Scans</div>
     </div>
-
-    <div class="card">
-        <h2>Scan Email</h2>
-        <form method="post" action="{% url 'scan_email' %}">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="id_email_content">{{ email_form.email_content.label }}</label>
-                {{ email_form.email_content }}
-            </div>
-            <button type="submit" class="btn">Analyze Email</button>
-        </form>
+    <div class="stat-card safe">
+        <div class="stat-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-value">{{ safe_count|default:"0" }}</div>
+        <div class="stat-label">Safe</div>
+    </div>
+    <div class="stat-card suspicious">
+        <div class="stat-icon">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <div class="stat-value">{{ suspicious_count|default:"0" }}</div>
+        <div class="stat-label">Suspicious</div>
+    </div>
+    <div class="stat-card phishing">
+        <div class="stat-icon">
+            <i class="fas fa-skull-crossbones"></i>
+        </div>
+        <div class="stat-value">{{ phishing_count|default:"0" }}</div>
+        <div class="stat-label">Phishing</div>
     </div>
 </div>
 
+<!-- Scan Card -->
+<div class="card scan-card">
+    <div class="card-header">
+        <i class="fas fa-shield-virus"></i>
+        <h2>Threat Scanner</h2>
+    </div>
+
+    <!-- Tabs -->
+    <div class="scan-tabs">
+        <button class="scan-tab active" data-tab="url">
+            <i class="fas fa-link"></i> URL Scan
+        </button>
+        <button class="scan-tab" data-tab="email">
+            <i class="fas fa-envelope"></i> Email Scan
+        </button>
+        <button class="scan-tab" data-tab="file">
+            <i class="fas fa-file-upload"></i> Upload .eml
+        </button>
+    </div>
+
+    <!-- URL Form -->
+    <form class="scan-form active" id="url-form" method="post" action="{% url 'scan_url' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_url">Enter URL to analyze</label>
+            <input type="url" name="url" id="id_url" class="form-input" placeholder="https://example.com/suspicious-page" required>
+        </div>
+        <button type="submit" class="btn-primary">
+            <i class="fas fa-search"></i> Scan for Threats
+        </button>
+    </form>
+
+    <!-- Email Form -->
+    <form class="scan-form" id="email-form" method="post" action="{% url 'scan_email' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="id_email_content">Paste email content (headers + body)</label>
+            <textarea name="email_content" id="id_email_content" class="form-input" placeholder="Paste raw email content including headers..." required></textarea>
+        </div>
+        <button type="submit" class="btn-primary">
+            <i class="fas fa-search"></i> Scan for Threats
+        </button>
+    </form>
+
+    <!-- File Upload Form -->
+    <form class="scan-form" id="file-form" method="post" action="{% url 'scan_email_file' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="file-upload-area" id="drop-zone">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag and drop your .eml file here</p>
+            <span>or click to browse</span>
+            <input type="file" name="email_file" id="email_file" accept=".eml">
+        </div>
+        <div class="file-name" id="file-name-display">
+            <i class="fas fa-file-alt"></i>
+            <span id="selected-file-name"></span>
+            <button type="button" id="clear-file"><i class="fas fa-times"></i></button>
+        </div>
+        <button type="submit" class="btn-primary" id="file-submit-btn" disabled>
+            <i class="fas fa-search"></i> Scan for Threats
+        </button>
+    </form>
+</div>
+
+<!-- Recent Scans -->
 {% if recent_scans %}
-<div class="card" style="margin-top: 2rem;">
-    <h2>Recent Scans</h2>
+<div class="card recent-scans">
+    <div class="card-header">
+        <i class="fas fa-history"></i>
+        <h2>Recent Scans</h2>
+    </div>
     <table class="scan-table">
         <thead>
             <tr>
                 <th>Type</th>
                 <th>Input</th>
                 <th>Verdict</th>
-                <th>Risk</th>
+                <th>Risk Score</th>
                 <th>Date</th>
             </tr>
         </thead>
         <tbody>
             {% for s in recent_scans %}
             <tr>
-                <td><span class="badge">{{ s.scan_type|upper }}</span></td>
-                <td class="truncate">{{ s.input_data|truncatechars:60 }}</td>
-                <td><span class="verdict verdict-{{ s.verdict }}">{{ s.verdict|upper }}</span></td>
-                <td>{{ s.risk_score|floatformat:0 }}%</td>
-                <td>{{ s.created_at|date:"M d, H:i" }}</td>
+                <td>
+                    <span class="type-badge {{ s.scan_type }}">
+                        {% if s.scan_type == 'url' %}
+                        <i class="fas fa-link"></i>
+                        {% else %}
+                        <i class="fas fa-envelope"></i>
+                        {% endif %}
+                        {{ s.scan_type }}
+                    </span>
+                </td>
+                <td class="truncate">{{ s.input_data|truncatechars:50 }}</td>
+                <td>
+                    <span class="verdict verdict-{{ s.verdict }}">
+                        {% if s.verdict == 'safe' %}
+                        <i class="fas fa-check-circle"></i>
+                        {% elif s.verdict == 'suspicious' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                        {% else %}
+                        <i class="fas fa-times-circle"></i>
+                        {% endif %}
+                        {{ s.verdict }}
+                    </span>
+                </td>
+                <td class="risk-cell {% if s.risk_score < 30 %}risk-low{% elif s.risk_score < 70 %}risk-medium{% else %}risk-high{% endif %}">
+                    {{ s.risk_score|floatformat:0 }}%
+                </td>
+                <td class="date-cell">{{ s.created_at|date:"M d, H:i" }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 {% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    const tabs = document.querySelectorAll('.scan-tab');
+    const forms = document.querySelectorAll('.scan-form');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabId = this.dataset.tab;
+
+            tabs.forEach(t => t.classList.remove('active'));
+            forms.forEach(f => f.classList.remove('active'));
+
+            this.classList.add('active');
+            document.getElementById(tabId + '-form').classList.add('active');
+        });
+    });
+
+    // File upload handling
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('email_file');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const selectedFileName = document.getElementById('selected-file-name');
+    const clearFileBtn = document.getElementById('clear-file');
+    const fileSubmitBtn = document.getElementById('file-submit-btn');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].name.endsWith('.eml')) {
+            fileInput.files = files;
+            updateFileName(files[0].name);
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            updateFileName(this.files[0].name);
+        }
+    });
+
+    clearFileBtn.addEventListener('click', function() {
+        fileInput.value = '';
+        fileNameDisplay.classList.remove('show');
+        dropZone.style.display = 'block';
+        fileSubmitBtn.disabled = true;
+    });
+
+    function updateFileName(name) {
+        selectedFileName.textContent = name;
+        fileNameDisplay.classList.add('show');
+        dropZone.style.display = 'none';
+        fileSubmitBtn.disabled = false;
+    }
+
+    // Form submission loading state
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function() {
+            const btn = this.querySelector('.btn-primary');
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        });
+    });
+});
+</script>
 {% endblock %}
