@@ -992,79 +992,66 @@ textarea.form-input {
 }
 
 /* ===== QR Scanner Styles ===== */
-.camera-container {
-    position: relative;
+.qr-reader {
     width: 100%;
-    max-width: 500px;
-    aspect-ratio: 1;
-    background: var(--bg-input);
+    max-width: 600px;
+    margin-bottom: 1rem;
     border-radius: 12px;
     overflow: hidden;
-    margin-bottom: 1rem;
-}
-
-.camera-container video,
-.camera-container #qr-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.camera-placeholder {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
     background: var(--bg-input);
+    min-height: 400px;
 }
 
-.camera-placeholder i {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    color: var(--accent-primary);
-    opacity: 0.5;
+.qr-reader video {
+    width: 100% !important;
+    border-radius: 12px;
 }
 
-.camera-placeholder p {
-    font-size: 0.9rem;
+.qr-reader #qr-shaded-region {
+    border-color: var(--accent-primary) !important;
 }
 
-.scan-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
+#qr-reader__scan_region {
+    background: var(--bg-input) !important;
 }
 
-.scan-frame {
-    width: 250px;
-    height: 250px;
-    border: 3px solid var(--accent-primary);
-    border-radius: 16px;
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-    animation: pulse-border 2s ease-in-out infinite;
+#qr-reader__dashboard {
+    padding: 10px !important;
+    background: var(--bg-card) !important;
 }
 
-@keyframes pulse-border {
-    0%, 100% { border-color: var(--accent-primary); }
-    50% { border-color: var(--accent-secondary); }
+#qr-reader__dashboard span {
+    color: var(--text-secondary) !important;
+}
+
+#qr-reader__dashboard select {
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    padding: 8px !important;
+}
+
+#qr-reader__dashboard button {
+    background: var(--accent-primary) !important;
+    color: var(--bg-dark) !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+}
+
+#qr-reader__camera_permission_button {
+    background: var(--accent-primary) !important;
+    color: var(--bg-dark) !important;
 }
 
 .camera-controls {
     display: flex;
     gap: 1rem;
     margin-bottom: 1rem;
+    margin-top: 1rem;
 }
 
 .btn-secondary {
@@ -1194,3 +1181,85 @@ textarea.form-input {
     font-size: 0.875rem;
     margin-top: 0.5rem;
 }
+
+/* ===== UPI QR Styles ===== */
+.upi-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #5f259f, #8e44ad);
+    color: white;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+}
+
+.upi-badge i {
+    font-size: 1rem;
+}
+
+.upi-details {
+    background: var(--bg-input);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.upi-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.upi-field:last-child {
+    border-bottom: none;
+}
+
+.upi-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.upi-value {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-align: right;
+    word-break: break-all;
+    max-width: 60%;
+}
+
+.upi-raw {
+    margin-top: 1rem;
+}
+
+.upi-raw label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.upi-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(210, 153, 34, 0.1);
+    border: 1px solid rgba(210, 153, 34, 0.3);
+    border-radius: 8px;
+    margin-top: 1rem;
+    color: var(--warning);
+    font-size: 0.85rem;
+}
+
+.upi-warning i {
+    margin-top: 2px;
+}
+

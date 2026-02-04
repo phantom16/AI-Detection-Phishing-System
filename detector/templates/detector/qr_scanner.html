@@ -47,16 +47,7 @@
 
     <!-- Camera Scanner -->
     <div class="scan-form active" id="camera-form">
-        <div class="camera-container" id="camera-container">
-            <video id="qr-video" autoplay playsinline></video>
-            <div class="scan-overlay">
-                <div class="scan-frame"></div>
-            </div>
-            <div class="camera-placeholder" id="camera-placeholder">
-                <i class="fas fa-camera"></i>
-                <p>Camera preview will appear here</p>
-            </div>
-        </div>
+        <div id="qr-reader" class="qr-reader"></div>
         <div class="camera-controls">
             <button type="button" class="btn-primary" id="start-camera">
                 <i class="fas fa-play"></i> Start Camera
@@ -94,21 +85,83 @@
     </form>
 </div>
 
-<!-- Decoded URL Result (shown after scan) -->
+<!-- Decoded Result (shown after scan) -->
 <div class="card" id="decoded-result" style="display: none; margin-top: 1.5rem;">
-    <div class="card-header">
-        <i class="fas fa-link"></i>
-        <h2>Decoded Content</h2>
+    <div class="card-header" id="result-header">
+        <i class="fas fa-check-circle" id="result-icon"></i>
+        <h2 id="result-title">QR Code Decoded Successfully</h2>
     </div>
     <div class="decoded-content">
-        <div class="decoded-url" id="decoded-url"></div>
-        <form method="post" action="{% url 'scan_url' %}" id="scan-decoded-form">
-            {% csrf_token %}
-            <input type="hidden" name="url" id="decoded-url-input">
-            <button type="submit" class="btn-primary">
-                <i class="fas fa-shield-virus"></i> Scan for Phishing Threats
-            </button>
-        </form>
+        <!-- UPI QR Result -->
+        <div id="upi-result" style="display: none;">
+            <div class="upi-badge">
+                <i class="fas fa-mobile-alt"></i> UPI Payment QR Code
+            </div>
+            <div class="upi-details">
+                <div class="upi-field" id="upi-pa-field" style="display: none;">
+                    <span class="upi-label">UPI ID (VPA):</span>
+                    <span class="upi-value" id="upi-pa"></span>
+                </div>
+                <div class="upi-field" id="upi-pn-field" style="display: none;">
+                    <span class="upi-label">Payee Name:</span>
+                    <span class="upi-value" id="upi-pn"></span>
+                </div>
+                <div class="upi-field" id="upi-am-field" style="display: none;">
+                    <span class="upi-label">Amount:</span>
+                    <span class="upi-value" id="upi-am"></span>
+                </div>
+                <div class="upi-field" id="upi-cu-field" style="display: none;">
+                    <span class="upi-label">Currency:</span>
+                    <span class="upi-value" id="upi-cu"></span>
+                </div>
+                <div class="upi-field" id="upi-tn-field" style="display: none;">
+                    <span class="upi-label">Transaction Note:</span>
+                    <span class="upi-value" id="upi-tn"></span>
+                </div>
+                <div class="upi-field" id="upi-tr-field" style="display: none;">
+                    <span class="upi-label">Transaction Ref:</span>
+                    <span class="upi-value" id="upi-tr"></span>
+                </div>
+                <div class="upi-field" id="upi-mc-field" style="display: none;">
+                    <span class="upi-label">Merchant Code:</span>
+                    <span class="upi-value" id="upi-mc"></span>
+                </div>
+                <div class="upi-field" id="upi-mid-field" style="display: none;">
+                    <span class="upi-label">Merchant ID:</span>
+                    <span class="upi-value" id="upi-mid"></span>
+                </div>
+            </div>
+            <div class="upi-raw">
+                <label>Raw UPI URI:</label>
+                <div class="decoded-url" id="upi-raw-data"></div>
+            </div>
+            <p class="upi-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Always verify the UPI ID before making payments. Scammers may use fake QR codes.</span>
+            </p>
+        </div>
+
+        <!-- URL Result -->
+        <div id="url-result" style="display: none;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">Detected URL:</label>
+            <div class="decoded-url" id="decoded-url"></div>
+            <form method="post" action="{% url 'scan_url' %}" id="scan-decoded-form">
+                {% csrf_token %}
+                <input type="hidden" name="url" id="decoded-url-input">
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-shield-virus"></i> Scan URL for Phishing Threats
+                </button>
+            </form>
+        </div>
+
+        <!-- Other QR Result -->
+        <div id="other-result" style="display: none;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">Decoded Content:</label>
+            <div class="decoded-url" id="other-content"></div>
+            <p class="text-muted">
+                <i class="fas fa-info-circle"></i> This QR code contains text/data. Phishing scan is only available for URLs.
+            </p>
+        </div>
     </div>
 </div>
 
@@ -159,6 +212,7 @@
 
 {% block scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Tab switching
@@ -174,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById(tabId + '-form').classList.add('active');
 
             // Stop camera when switching tabs
-            if (tabId !== 'camera' && html5QrCode && isScanning) {
+            if (tabId !== 'camera' && isScanning) {
                 stopCamera();
             }
         });
@@ -183,10 +237,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Camera scanning
     let html5QrCode = null;
     let isScanning = false;
+    let jsQRInterval = null;
+    let videoElement = null;
+    let canvasElement = null;
+    let canvasContext = null;
     const startBtn = document.getElementById('start-camera');
     const stopBtn = document.getElementById('stop-camera');
     const scanStatus = document.getElementById('scan-status');
-    const cameraPlaceholder = document.getElementById('camera-placeholder');
     const decodedResult = document.getElementById('decoded-result');
     const decodedUrl = document.getElementById('decoded-url');
     const decodedUrlInput = document.getElementById('decoded-url-input');
@@ -195,55 +252,128 @@ document.addEventListener('DOMContentLoaded', function() {
     stopBtn.addEventListener('click', stopCamera);
 
     function startCamera() {
-        html5QrCode = new Html5Qrcode("qr-video", { experimentalFeatures: { useBarCodeDetectorIfSupported: true }});
+        scanStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Requesting camera access...</span>';
+        scanStatus.className = 'scan-status scanning';
 
-        Html5Qrcode.getCameras().then(cameras => {
-            if (cameras && cameras.length) {
-                const cameraId = cameras[0].id;
-                cameraPlaceholder.style.display = 'none';
+        html5QrCode = new Html5Qrcode("qr-reader", {
+            formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+            verbose: false
+        });
 
-                html5QrCode.start(
-                    cameraId,
-                    {
-                        fps: 10,
-                        qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0
-                    },
-                    onScanSuccess,
-                    onScanFailure
-                ).then(() => {
-                    isScanning = true;
-                    startBtn.style.display = 'none';
-                    stopBtn.style.display = 'inline-flex';
-                    scanStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Scanning... Point camera at QR code</span>';
-                    scanStatus.className = 'scan-status scanning';
-                }).catch(err => {
-                    console.error('Error starting camera:', err);
-                    scanStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>Error: ' + err + '</span>';
-                    scanStatus.className = 'scan-status error';
-                });
+        // Configuration optimized for UPI QR codes
+        const config = {
+            fps: 15,
+            qrbox: { width: 300, height: 300 },
+            aspectRatio: 1.0,
+            disableFlip: false,
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
             }
+        };
+
+        html5QrCode.start(
+            { facingMode: "environment" }, // Use back camera
+            config,
+            onScanSuccess,
+            onScanFailure
+        ).then(() => {
+            isScanning = true;
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-flex';
+            scanStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Scanning... Hold QR code steady in the frame</span>';
+            scanStatus.className = 'scan-status scanning';
+
+            // Start jsQR fallback scanner for better UPI detection
+            startJsQRFallback();
         }).catch(err => {
-            console.error('Error getting cameras:', err);
-            scanStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>Camera access denied or not available</span>';
-            scanStatus.className = 'scan-status error';
+            console.error('Error starting camera:', err);
+            // Try front camera if back camera fails
+            html5QrCode.start(
+                { facingMode: "user" },
+                config,
+                onScanSuccess,
+                onScanFailure
+            ).then(() => {
+                isScanning = true;
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-flex';
+                scanStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Scanning (front camera)... Hold QR code steady</span>';
+                scanStatus.className = 'scan-status scanning';
+
+                // Start jsQR fallback scanner
+                startJsQRFallback();
+            }).catch(err2 => {
+                console.error('Error starting any camera:', err2);
+                scanStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>Camera error: ' + err2 + '</span>';
+                scanStatus.className = 'scan-status error';
+            });
         });
     }
 
+    // jsQR fallback - scans video frames directly for better UPI QR support
+    function startJsQRFallback() {
+        // Get the video element created by html5-qrcode
+        setTimeout(() => {
+            videoElement = document.querySelector('#qr-reader video');
+            if (videoElement) {
+                canvasElement = document.createElement('canvas');
+                canvasContext = canvasElement.getContext('2d', { willReadFrequently: true });
+
+                jsQRInterval = setInterval(() => {
+                    if (!isScanning || !videoElement) return;
+
+                    try {
+                        const width = videoElement.videoWidth;
+                        const height = videoElement.videoHeight;
+
+                        if (width > 0 && height > 0) {
+                            canvasElement.width = width;
+                            canvasElement.height = height;
+                            canvasContext.drawImage(videoElement, 0, 0, width, height);
+
+                            const imageData = canvasContext.getImageData(0, 0, width, height);
+                            const code = jsQR(imageData.data, width, height, {
+                                inversionAttempts: "dontInvert"
+                            });
+
+                            if (code && code.data) {
+                                console.log('jsQR detected:', code.data);
+                                stopCamera();
+                                showDecodedResult(code.data);
+                                scanStatus.innerHTML = '<i class="fas fa-check-circle"></i> <span>QR Code detected!</span>';
+                                scanStatus.className = 'scan-status success';
+                            }
+                        }
+                    } catch (e) {
+                        // Silent fail - continue scanning
+                    }
+                }, 200); // Scan every 200ms
+            }
+        }, 1000); // Wait for video element to be created
+    }
+
     function stopCamera() {
+        // Stop jsQR fallback scanner
+        if (jsQRInterval) {
+            clearInterval(jsQRInterval);
+            jsQRInterval = null;
+        }
+
         if (html5QrCode && isScanning) {
             html5QrCode.stop().then(() => {
                 isScanning = false;
+                html5QrCode = null;
                 startBtn.style.display = 'inline-flex';
                 stopBtn.style.display = 'none';
-                cameraPlaceholder.style.display = 'flex';
-                scanStatus.innerHTML = '<i class="fas fa-info-circle"></i> <span>Camera stopped</span>';
+                scanStatus.innerHTML = '<i class="fas fa-info-circle"></i> <span>Camera stopped. Click Start to scan again.</span>';
                 scanStatus.className = 'scan-status';
+            }).catch(err => {
+                console.error('Error stopping camera:', err);
             });
         }
     }
 
-    function onScanSuccess(decodedText, decodedResult) {
+    function onScanSuccess(decodedText, decodedResultObj) {
         // Stop scanning after successful decode
         stopCamera();
 
@@ -258,13 +388,165 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ignore scan failures (happens continuously when no QR in view)
     }
 
+    function isUPICode(text) {
+        if (!text) return false;
+        const lowerText = text.toLowerCase().trim();
+        // Check various UPI formats
+        return lowerText.startsWith('upi://') ||
+               lowerText.startsWith('upi:') ||
+               lowerText.includes('pa=') && lowerText.includes('@') ||
+               /^[a-z0-9.\-_]+@[a-z]+$/i.test(text); // Direct UPI ID format
+    }
+
     function showDecodedResult(text) {
+        console.log('Decoded text:', text);
         decodedResult.style.display = 'block';
-        decodedUrl.textContent = text;
-        decodedUrlInput.value = text;
+
+        const resultIcon = document.getElementById('result-icon');
+        const resultTitle = document.getElementById('result-title');
+        const upiResult = document.getElementById('upi-result');
+        const urlResult = document.getElementById('url-result');
+        const otherResult = document.getElementById('other-result');
+
+        // Hide all result types first
+        upiResult.style.display = 'none';
+        urlResult.style.display = 'none';
+        otherResult.style.display = 'none';
+
+        // Reset all UPI fields
+        const upiFields = ['pa', 'pn', 'am', 'cu', 'tn', 'tr', 'mc', 'mid'];
+        upiFields.forEach(field => {
+            const el = document.getElementById('upi-' + field + '-field');
+            if (el) el.style.display = 'none';
+        });
+
+        // Check if it's a UPI QR code
+        if (isUPICode(text)) {
+            resultIcon.className = 'fas fa-mobile-alt';
+            resultTitle.textContent = 'UPI Payment QR Detected';
+            upiResult.style.display = 'block';
+
+            // Parse UPI data using upiqr-style parsing
+            const upiData = parseUPI(text);
+            document.getElementById('upi-raw-data').textContent = text;
+
+            // Show parsed fields - pa (payeeVPA)
+            if (upiData.pa) {
+                document.getElementById('upi-pa').textContent = decodeURIComponent(upiData.pa);
+                document.getElementById('upi-pa-field').style.display = 'flex';
+            }
+            // pn (payeeName)
+            if (upiData.pn) {
+                document.getElementById('upi-pn').textContent = decodeURIComponent(upiData.pn);
+                document.getElementById('upi-pn-field').style.display = 'flex';
+            }
+            // am (amount)
+            if (upiData.am) {
+                const currency = upiData.cu || 'INR';
+                const symbol = currency === 'INR' ? '₹' : currency + ' ';
+                document.getElementById('upi-am').textContent = symbol + upiData.am;
+                document.getElementById('upi-am-field').style.display = 'flex';
+            }
+            // cu (currency)
+            if (upiData.cu) {
+                document.getElementById('upi-cu').textContent = upiData.cu;
+                document.getElementById('upi-cu-field').style.display = 'flex';
+            }
+            // tn (transactionNote)
+            if (upiData.tn) {
+                document.getElementById('upi-tn').textContent = decodeURIComponent(upiData.tn);
+                document.getElementById('upi-tn-field').style.display = 'flex';
+            }
+            // tr (transactionRef)
+            if (upiData.tr) {
+                document.getElementById('upi-tr').textContent = decodeURIComponent(upiData.tr);
+                document.getElementById('upi-tr-field').style.display = 'flex';
+            }
+            // mc (merchantCode/MCC)
+            if (upiData.mc) {
+                document.getElementById('upi-mc').textContent = upiData.mc;
+                document.getElementById('upi-mc-field').style.display = 'flex';
+            }
+            // mid (merchantId)
+            if (upiData.mid) {
+                document.getElementById('upi-mid').textContent = upiData.mid;
+                document.getElementById('upi-mid-field').style.display = 'flex';
+            }
+
+            console.log('Parsed UPI Data:', upiData);
+        }
+        // Check if it's a URL
+        else if (text.match(/^(https?:\/\/|www\.)/i)) {
+            resultIcon.className = 'fas fa-link';
+            resultTitle.textContent = 'URL Detected';
+            urlResult.style.display = 'block';
+
+            document.getElementById('decoded-url').textContent = text;
+            document.getElementById('decoded-url-input').value = text.startsWith('http') ? text : 'https://' + text;
+        }
+        // Other content
+        else {
+            resultIcon.className = 'fas fa-qrcode';
+            resultTitle.textContent = 'QR Code Decoded';
+            otherResult.style.display = 'block';
+
+            document.getElementById('other-content').textContent = text;
+        }
 
         // Scroll to result
         decodedResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // Parse UPI QR code data (similar to upiqr library format)
+    function parseUPI(upiString) {
+        const result = {};
+        try {
+            let queryString = upiString.trim();
+
+            // Handle various UPI URL formats:
+            // upi://pay?pa=...
+            // upi://collect?pa=...
+            // upi://...
+            if (queryString.toLowerCase().startsWith('upi://')) {
+                const urlParts = queryString.split('?');
+                if (urlParts.length > 1) {
+                    queryString = urlParts.slice(1).join('?');
+                } else {
+                    // No query params, might be just upi://pa@bank format
+                    queryString = queryString.replace(/^upi:\/\//i, '');
+                }
+            }
+
+            // Parse query parameters
+            const params = queryString.split('&');
+            params.forEach(param => {
+                const eqIndex = param.indexOf('=');
+                if (eqIndex > 0) {
+                    const key = param.substring(0, eqIndex).toLowerCase().trim();
+                    const value = param.substring(eqIndex + 1).trim();
+                    if (key && value) {
+                        result[key] = value;
+                    }
+                }
+            });
+
+            // Standard UPI parameters mapping (like upiqr):
+            // pa  - payeeVPA (UPI ID)
+            // pn  - payeeName
+            // am  - amount
+            // cu  - currency (INR)
+            // tn  - transactionNote
+            // tr  - transactionRef
+            // mc  - merchantCode (MCC)
+            // mid - merchantId
+            // tid - terminalId
+            // url - callback URL
+            // mode - payment mode
+
+        } catch (e) {
+            console.error('Error parsing UPI:', e);
+        }
+        return result;
     }
 
     // File upload handling
