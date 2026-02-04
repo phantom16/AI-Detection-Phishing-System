@@ -1,0 +1,338 @@
+{% extends "detector/base.html" %}
+
+{% block nav_qr %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-qrcode"></i> QR Code Scanner</h1>
+    <p>Scan QR codes to detect malicious URLs hidden in them</p>
+</div>
+
+{% if error %}
+<div class="alert alert-error">
+    <i class="fas fa-exclamation-circle"></i>
+    <span>{{ error }}</span>
+</div>
+{% endif %}
+
+{% if decoded_content and is_not_url %}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <i class="fas fa-info-circle"></i>
+        <h2>Decoded Content (Not a URL)</h2>
+    </div>
+    <div class="decoded-content">
+        <div class="decoded-url">{{ decoded_content }}</div>
+        <p class="text-muted">This QR code does not contain a URL, so phishing analysis is not applicable.</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- QR Scanner Card -->
+<div class="card scan-card">
+    <div class="card-header">
+        <i class="fas fa-camera"></i>
+        <h2>Scan QR Code</h2>
+    </div>
+
+    <!-- Tabs -->
+    <div class="scan-tabs">
+        <button class="scan-tab active" data-tab="camera">
+            <i class="fas fa-video"></i> Live Camera
+        </button>
+        <button class="scan-tab" data-tab="upload">
+            <i class="fas fa-upload"></i> Upload Image
+        </button>
+    </div>
+
+    <!-- Camera Scanner -->
+    <div class="scan-form active" id="camera-form">
+        <div class="camera-container" id="camera-container">
+            <video id="qr-video" autoplay playsinline></video>
+            <div class="scan-overlay">
+                <div class="scan-frame"></div>
+            </div>
+            <div class="camera-placeholder" id="camera-placeholder">
+                <i class="fas fa-camera"></i>
+                <p>Camera preview will appear here</p>
+            </div>
+        </div>
+        <div class="camera-controls">
+            <button type="button" class="btn-primary" id="start-camera">
+                <i class="fas fa-play"></i> Start Camera
+            </button>
+            <button type="button" class="btn-secondary" id="stop-camera" style="display: none;">
+                <i class="fas fa-stop"></i> Stop Camera
+            </button>
+        </div>
+        <div class="scan-status" id="scan-status">
+            <i class="fas fa-info-circle"></i>
+            <span>Click "Start Camera" to begin scanning</span>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <form class="scan-form" id="upload-form" method="post" action="{% url 'scan_qr' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="file-upload-area" id="qr-drop-zone">
+            <i class="fas fa-qrcode"></i>
+            <p>Drag and drop QR code image here</p>
+            <span>Supports PNG, JPG, JPEG, GIF</span>
+            <input type="file" name="qr_image" id="qr_image" accept="image/*">
+        </div>
+        <div class="file-name" id="qr-file-name-display">
+            <i class="fas fa-image"></i>
+            <span id="qr-selected-file-name"></span>
+            <button type="button" id="qr-clear-file"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="image-preview" id="image-preview" style="display: none;">
+            <img id="preview-img" src="" alt="QR Preview">
+        </div>
+        <button type="submit" class="btn-primary" id="qr-submit-btn" disabled>
+            <i class="fas fa-search"></i> Scan QR Code
+        </button>
+    </form>
+</div>
+
+<!-- Decoded URL Result (shown after scan) -->
+<div class="card" id="decoded-result" style="display: none; margin-top: 1.5rem;">
+    <div class="card-header">
+        <i class="fas fa-link"></i>
+        <h2>Decoded Content</h2>
+    </div>
+    <div class="decoded-content">
+        <div class="decoded-url" id="decoded-url"></div>
+        <form method="post" action="{% url 'scan_url' %}" id="scan-decoded-form">
+            {% csrf_token %}
+            <input type="hidden" name="url" id="decoded-url-input">
+            <button type="submit" class="btn-primary">
+                <i class="fas fa-shield-virus"></i> Scan for Phishing Threats
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Recent QR Scans -->
+{% if recent_qr_scans %}
+<div class="card recent-scans" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <i class="fas fa-history"></i>
+        <h2>Recent QR Scans</h2>
+    </div>
+    <table class="scan-table">
+        <thead>
+            <tr>
+                <th>Decoded URL</th>
+                <th>Verdict</th>
+                <th>Risk Score</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in recent_qr_scans %}
+            <tr>
+                <td class="truncate">{{ s.input_data|truncatechars:50 }}</td>
+                <td>
+                    <span class="verdict verdict-{{ s.verdict }}">
+                        {% if s.verdict == 'safe' %}
+                        <i class="fas fa-check-circle"></i>
+                        {% elif s.verdict == 'suspicious' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                        {% else %}
+                        <i class="fas fa-times-circle"></i>
+                        {% endif %}
+                        {{ s.verdict }}
+                    </span>
+                </td>
+                <td class="risk-cell {% if s.risk_score < 30 %}risk-low{% elif s.risk_score < 70 %}risk-medium{% else %}risk-high{% endif %}">
+                    {{ s.risk_score|floatformat:0 }}%
+                </td>
+                <td class="date-cell">{{ s.created_at|date:"M d, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching
+    const tabs = document.querySelectorAll('.scan-tab');
+    const forms = document.querySelectorAll('.scan-form');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabId = this.dataset.tab;
+            tabs.forEach(t => t.classList.remove('active'));
+            forms.forEach(f => f.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById(tabId + '-form').classList.add('active');
+
+            // Stop camera when switching tabs
+            if (tabId !== 'camera' && html5QrCode && isScanning) {
+                stopCamera();
+            }
+        });
+    });
+
+    // Camera scanning
+    let html5QrCode = null;
+    let isScanning = false;
+    const startBtn = document.getElementById('start-camera');
+    const stopBtn = document.getElementById('stop-camera');
+    const scanStatus = document.getElementById('scan-status');
+    const cameraPlaceholder = document.getElementById('camera-placeholder');
+    const decodedResult = document.getElementById('decoded-result');
+    const decodedUrl = document.getElementById('decoded-url');
+    const decodedUrlInput = document.getElementById('decoded-url-input');
+
+    startBtn.addEventListener('click', startCamera);
+    stopBtn.addEventListener('click', stopCamera);
+
+    function startCamera() {
+        html5QrCode = new Html5Qrcode("qr-video", { experimentalFeatures: { useBarCodeDetectorIfSupported: true }});
+
+        Html5Qrcode.getCameras().then(cameras => {
+            if (cameras && cameras.length) {
+                const cameraId = cameras[0].id;
+                cameraPlaceholder.style.display = 'none';
+
+                html5QrCode.start(
+                    cameraId,
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0
+                    },
+                    onScanSuccess,
+                    onScanFailure
+                ).then(() => {
+                    isScanning = true;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-flex';
+                    scanStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Scanning... Point camera at QR code</span>';
+                    scanStatus.className = 'scan-status scanning';
+                }).catch(err => {
+                    console.error('Error starting camera:', err);
+                    scanStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>Error: ' + err + '</span>';
+                    scanStatus.className = 'scan-status error';
+                });
+            }
+        }).catch(err => {
+            console.error('Error getting cameras:', err);
+            scanStatus.innerHTML = '<i class="fas fa-exclamation-circle"></i> <span>Camera access denied or not available</span>';
+            scanStatus.className = 'scan-status error';
+        });
+    }
+
+    function stopCamera() {
+        if (html5QrCode && isScanning) {
+            html5QrCode.stop().then(() => {
+                isScanning = false;
+                startBtn.style.display = 'inline-flex';
+                stopBtn.style.display = 'none';
+                cameraPlaceholder.style.display = 'flex';
+                scanStatus.innerHTML = '<i class="fas fa-info-circle"></i> <span>Camera stopped</span>';
+                scanStatus.className = 'scan-status';
+            });
+        }
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        // Stop scanning after successful decode
+        stopCamera();
+
+        // Show the decoded URL
+        showDecodedResult(decodedText);
+
+        scanStatus.innerHTML = '<i class="fas fa-check-circle"></i> <span>QR Code detected!</span>';
+        scanStatus.className = 'scan-status success';
+    }
+
+    function onScanFailure(error) {
+        // Ignore scan failures (happens continuously when no QR in view)
+    }
+
+    function showDecodedResult(text) {
+        decodedResult.style.display = 'block';
+        decodedUrl.textContent = text;
+        decodedUrlInput.value = text;
+
+        // Scroll to result
+        decodedResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // File upload handling
+    const dropZone = document.getElementById('qr-drop-zone');
+    const fileInput = document.getElementById('qr_image');
+    const fileNameDisplay = document.getElementById('qr-file-name-display');
+    const selectedFileName = document.getElementById('qr-selected-file-name');
+    const clearFileBtn = document.getElementById('qr-clear-file');
+    const submitBtn = document.getElementById('qr-submit-btn');
+    const imagePreview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+            fileInput.files = files;
+            updateFileName(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            updateFileName(this.files[0]);
+        }
+    });
+
+    clearFileBtn.addEventListener('click', function() {
+        fileInput.value = '';
+        fileNameDisplay.classList.remove('show');
+        dropZone.style.display = 'block';
+        imagePreview.style.display = 'none';
+        submitBtn.disabled = true;
+    });
+
+    function updateFileName(file) {
+        selectedFileName.textContent = file.name;
+        fileNameDisplay.classList.add('show');
+        dropZone.style.display = 'none';
+        submitBtn.disabled = false;
+
+        // Show image preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            imagePreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // Form submission loading state
+    document.getElementById('upload-form').addEventListener('submit', function() {
+        const btn = this.querySelector('.btn-primary');
+        btn.classList.add('loading');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+    });
+});
+</script>
+{% endblock %}

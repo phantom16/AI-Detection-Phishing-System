@@ -6,3 +6,5 @@ beautifulsoup4>=4.12
 python-whois>=0.9
 tldextract>=5.0
 python-dotenv>=1.0
+Pillow>=10.0
+pyzbar>=0.1.9

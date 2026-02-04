@@ -1,6 +1,9 @@
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.db.models import Count
+from PIL import Image
+from pyzbar.pyzbar import decode
+import io
 
 from .forms import URLScanForm, EmailScanForm
 from .models import ScanResult
@@ -102,3 +105,72 @@ def scan_email_file(request):
         indicators=analysis['indicators'],
     )
     return render(request, 'detector/result.html', {'scan': scan, 'features': analysis['features']})
+
+
+def qr_scanner(request):
+    """QR Scanner page view"""
+    recent_qr_scans = ScanResult.objects.filter(scan_type='qr')[:10]
+    return render(request, 'detector/qr_scanner.html', {
+        'recent_qr_scans': recent_qr_scans,
+    })
+
+
+@require_http_methods(["POST"])
+def scan_qr(request):
+    """Scan uploaded QR code image and extract URL"""
+    if 'qr_image' not in request.FILES:
+        return redirect('qr_scanner')
+
+    uploaded_file = request.FILES['qr_image']
+
+    # Validate file type
+    allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif']
+    if uploaded_file.content_type not in allowed_types:
+        return redirect('qr_scanner')
+
+    try:
+        # Read and decode QR code
+        image_data = uploaded_file.read()
+        image = Image.open(io.BytesIO(image_data))
+        decoded_objects = decode(image)
+
+        if not decoded_objects:
+            # No QR code found
+            return render(request, 'detector/qr_scanner.html', {
+                'error': 'No QR code found in the image. Please try another image.',
+                'recent_qr_scans': ScanResult.objects.filter(scan_type='qr')[:10],
+            })
+
+        # Get the first decoded QR code data
+        qr_data = decoded_objects[0].data.decode('utf-8')
+
+        # Check if it's a URL
+        if qr_data.startswith(('http://', 'https://', 'www.')):
+            url = qr_data if qr_data.startswith('http') else 'https://' + qr_data
+
+            # Analyze the URL
+            analysis = analyze_url(url)
+            result = classify_phishing('url', url, analysis)
+
+            scan = ScanResult.objects.create(
+                scan_type='qr',
+                input_data=url,
+                risk_score=result['risk_score'],
+                verdict=result['verdict'],
+                explanation=result['explanation'],
+                indicators=analysis['indicators'],
+            )
+            return render(request, 'detector/result.html', {'scan': scan, 'features': analysis['features']})
+        else:
+            # Non-URL QR code content
+            return render(request, 'detector/qr_scanner.html', {
+                'decoded_content': qr_data,
+                'is_not_url': True,
+                'recent_qr_scans': ScanResult.objects.filter(scan_type='qr')[:10],
+            })
+
+    except Exception as e:
+        return render(request, 'detector/qr_scanner.html', {
+            'error': f'Error processing image: {str(e)}',
+            'recent_qr_scans': ScanResult.objects.filter(scan_type='qr')[:10],
+        })

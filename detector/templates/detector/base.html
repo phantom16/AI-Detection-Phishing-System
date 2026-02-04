@@ -23,33 +23,13 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="#" class="nav-item disabled">
-                    <i class="fas fa-database"></i>
-                    <span>Breach Monitor</span>
-                </a>
                 <a href="{% url 'index' %}" class="nav-item {% block nav_phishing %}{% endblock %}">
                     <i class="fas fa-fish"></i>
                     <span>Phishing Detector</span>
                 </a>
-                <a href="#" class="nav-item disabled">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Log Analyzer</span>
-                </a>
-                <a href="#" class="nav-item disabled">
-                    <i class="fas fa-bug"></i>
-                    <span>Vulnerability Scanner</span>
-                </a>
-                <a href="#" class="nav-item disabled">
-                    <i class="fas fa-user-shield"></i>
-                    <span>Access Control</span>
-                </a>
-                <a href="#" class="nav-item disabled">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>Incidents</span>
-                </a>
-                <a href="#" class="nav-item disabled">
-                    <i class="fas fa-robot"></i>
-                    <span>AI Query Console</span>
+                <a href="{% url 'qr_scanner' %}" class="nav-item {% block nav_qr %}{% endblock %}">
+                    <i class="fas fa-qrcode"></i>
+                    <span>QR Scanner</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
