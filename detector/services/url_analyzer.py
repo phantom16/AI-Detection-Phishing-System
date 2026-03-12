@@ -61,13 +61,21 @@ def analyze_url(url: str) -> dict:
     # Known brand impersonation keywords
     brand_keywords = ['login', 'signin', 'verify', 'account', 'secure', 'update',
                       'banking', 'paypal', 'apple', 'microsoft', 'google', 'amazon']
+    # Official brand domains (including country-code TLDs)
+    official_brands = {
+        'google': ['google.com', 'google.in', 'google.co.uk', 'google.co.in'],
+        'amazon': ['amazon.com', 'amazon.in', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon.co.jp'],
+        'microsoft': ['microsoft.com', 'microsoft.in'],
+        'apple': ['apple.com'],
+        'paypal': ['paypal.com', 'paypal.in'],
+    }
     domain_lower = extracted.domain.lower()
     for kw in brand_keywords:
-        if kw in domain_lower and extracted.registered_domain not in [
-            f'{kw}.com', f'{kw}.org', f'{kw}.net'
-        ]:
-            indicators.append(f"Domain contains brand keyword '{kw}'")
-            break
+        if kw in domain_lower:
+            allowed = official_brands.get(kw, [f'{kw}.com', f'{kw}.org', f'{kw}.net'])
+            if extracted.registered_domain not in allowed:
+                indicators.append(f"Domain contains brand keyword '{kw}'")
+                break
 
     # Check redirects
     features['redirects'] = 0
